@@ -40,8 +40,8 @@ public class SmackAndroid {
 
     private void maybeRegisterReceiver() {
 	if (mConnectivityChangedReceiver == null) {
-	    mConnectivityChangedReceiver = new ConnectivtyChangedReceiver();
-	    mCtx.registerReceiver(mConnectivityChangedReceiver, new IntentFilter("android.net.conn.CONNECTIVITY_CHANGE"));
+//	    mConnectivityChangedReceiver = new ConnectivtyChangedReceiver();
+//	    mCtx.registerReceiver(mConnectivityChangedReceiver, new IntentFilter("android.net.conn.CONNECTIVITY_CHANGE"));
 	}
     }
 
