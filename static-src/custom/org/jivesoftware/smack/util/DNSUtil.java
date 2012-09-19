@@ -44,6 +44,9 @@ public class DNSUtil {
 	private static Map<String, HostAddress> scache = new Cache(100, 1000 * 60 * 10);
 
 	private static HostAddress resolveSRV(String domain) {
+		// Disable SRV lookups as they cause a hang (forking bug running process to get DNS addresses)
+		return null;
+		/*
 		String bestHost = null;
 		int bestPort = -1;
 		int bestPriority = Integer.MAX_VALUE;
@@ -83,7 +86,7 @@ public class DNSUtil {
 		if (bestHost.endsWith(".")) {
 			bestHost = bestHost.substring(0, bestHost.length() - 1);
 		}
-		return new HostAddress(bestHost, bestPort);
+		return new HostAddress(bestHost, bestPort); */
 	}
 
 	/**
