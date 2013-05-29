@@ -16,7 +16,7 @@ svnfetch() {
 }
 
 gitfetch() {
-    echo "Fetching ${2} branch from ${1} to ${3} via git"
+    echo "Fetching ${2} branch/commit from ${1} to ${3} via git"
     cd $SRC_DIR
     if ! [ -f "${3}/.git/config" ]; then
 	git clone "${1}" "${3}"
@@ -92,6 +92,55 @@ fetchall() {
     wait
 }
 
+createVersionTag() {
+    # Skip this step is no version tag is given
+    [[ -z $VERSION_TAG ]] && return
+
+    local v
+    cat <<EOF  > $TAG_FILE
+#!/bin/bash
+
+# This file contains the version information of the components that
+# were used to build this aSmack version
+
+declare -g -A COMPONENT_VERSIONS
+EOF
+
+    for d in $(ls $SRC_DIR) ; do
+	cd $SRC_DIR
+
+	# Don't record the components version for static-src
+	for static in $(ls ${ASMACK_BASE}/static-src) ; do
+	    # Don't record the version if it's from the static sources
+	    [ $d == $static ] && continue
+	done
+
+	if [[ -d $d/.git ]] ; then
+	    v=$(cd $d && git rev-parse HEAD)
+	    key=$d
+	    COMPONENT_VERSIONS["$d"]=$v
+	elif [[ -d $d/.svn ]] ; then
+	    v=$(cd $d && svn info |grep Revision |cut -f 2 -d ' ')
+	    key=$d
+	    COMPONENT_VERSIONS["$d"]=$v
+	fi
+    done
+
+    if $SMACK_LOCAL ; then
+	cd $SMACK_REPO
+	v=$(git rev-parse HEAD)
+	COMPONENT_VERSIONS[smack]=$v
+    fi
+
+    cd ${ASMACK_BASE}
+    v=$(git rev-parse HEAD)
+    COMPONENT_VERSIONS[asmack]=$v
+
+    for i in "${!COMPONENT_VERSIONS[@]}" ; do
+	echo "COMPONENT_VERSIONS[$i]=${COMPONENT_VERSIONS[$i]}" >> $TAG_FILE
+    done
+}
+
 copyfolder() {
   cd ${ASMACK_BASE}
   (
@@ -125,26 +174,23 @@ createbuildsrc() {
 }
 
 patchsrc() {
-  echo "## Step 25: patch build/src"
-  cd "${ASMACK_BASE}"
-  (
-    cd build/src/trunk/
+    echo "## Step 25: patch build/src"
+    cd ${ASMACK_BASE}/build/src/trunk/
     for PATCH in `(cd "../../../${1}" ; find -maxdepth 1 -type f)|sort` ; do
-      if echo $PATCH | grep '\.sh$'; then
-        if [ -f "../../../${1}/$PATCH" ]; then "../../../${1}/$PATCH" || exit 1 ; fi
-      fi
-      if echo $PATCH | grep '\.patch$'; then
-        if [ -f "../../../${1}/$PATCH" ]; then patch -p0 < "../../../${1}/$PATCH" || exit 1 ; fi
-      fi
+	echo $PATCH
+	if [[ $PATCH == *.sh ]]; then
+	    "../../../${1}/$PATCH" || exit 1
+	elif [[ $PATCH == *.patch ]]; then
+	    patch -p0 < "../../../${1}/$PATCH" || exit 1
+	fi
     done
-  )
 }
 
 build() {
   echo "## Step 30: compile"
-  buildandroid 
+  buildandroid
   if [ $? -ne 0 ]; then
-      exit
+      exit 1
   fi
 }
 
@@ -152,25 +198,57 @@ buildandroid() {
     local sdklocation
     local version
     local sdks
+    local minSdkVer=8
+
+    cd $ASMACK_BASE
+
+    if [ ! -f local.properties ] ; then
+	echo "Could not find local.properties file"
+	echo "See local.properties.example"
+	exit 1
+    fi
+
     sdklocation=$(grep sdk-location local.properties| cut -d= -f2)
     if [ -z "$sdklocation" ] ; then
 	echo "Android SDK not found. Don't build android version"
-	return
+	exit 1
     fi
     for f in ${sdklocation/\$\{user.home\}/$HOME}/platforms/* ; do
 	version=`basename $f`
-	if [ ${version#android-} -gt 5 ] ; then
+	if [[ "$version" != android-* ]] ; then
+	    echo "$sdklocation contains no Android SDKs"
+	    exit 1
+	fi
+	if [[ ${version#android-} -ge $minSdkVer ]] ; then
+	    if [ -n $BUILD_ANDROID_VERSIONS ] ; then
+		for build_version in $BUILD_ANDROID_VERSIONS ; do
+		    [ ${version#android-} != $build_version ] && continue 2
+		done
+	    fi
 	    echo "Building for ${version}"
 	    sdks="${sdks} ${version}\n"
 	fi
 
     done
+
     if [ -z "${sdks}" ] ; then
-	echo "No SDKs found"
+	echo "No SDKs of a suitable minimal API (${minSdkVer}) version found"
 	exit 1
     fi
-    if echo -e ${sdks} | \
-	xargs -I{} -n 1 $XARGS_ARGS ant -Dandroid.version={} -Djar.suffix="${1}" compile-android ; then
+
+    local asmack_suffix
+    if [[ -n ${VERSION_TAG} ]] && [[ -n ${1} ]] ; then
+	asmack_suffix="${1}-${VERSION_TAG}"
+    elif [[ -n ${VERSION_TAG} ]] ; then
+	asmack_suffix="-${VERSION_TAG}"
+    else
+	asmack_suffix="${1}"
+    fi
+    if ! echo -e ${sdks} \
+	| xargs -I{} -n 1 $XARGS_ARGS ant \
+		-Dandroid.version={} \
+		-Djar.suffix="${asmack_suffix}" \
+		compile-android ; then
 	exit 1
     fi
 }
@@ -192,8 +270,11 @@ buildcustom() {
 }
 
 parseopts() {
-    while getopts b:r:cdhjpu OPTION "$@"; do
+    while getopts a:b:r:t:cdhjpux OPTION "$@"; do
 	case $OPTION in
+	    a)
+		BUILD_ANDROID_VERSIONS="${OPTARG}"
+		;;
 	    r)
 		SMACK_REPO="${OPTARG}"
 		;;
@@ -216,6 +297,12 @@ parseopts() {
 	    p)
 		PARALLEL_BUILD=true
 		;;
+	    t)
+		VERSION_TAG="${OPTARG}"
+		;;
+	    x)
+		PUBLISH_RELEASE=true
+		;;
 	    h)
 		echo "$0 -d -c -u -j -r <repo> -b <branch>"
 		echo "-d: Enable debug"
@@ -225,10 +312,82 @@ parseopts() {
 		echo "-r <repo>: Git repository (can be local or remote) for underlying smack repository"
 		echo "-b <branch>: Git branch used to build aSmack from underlying smack repository"
 		echo "-p use parallel build where possible"
+		echo "-t <version>: Create a new version tag. You should build aSmack before calling this"
+		echo "-x: Publish the release"
+		echo "-a <SDK Version(s)>: Build only for the given Android SDK versions"
 		exit
 		;;
 	esac
     done
+}
+
+prepareRelease() {
+    if [[ -z ${VERSION_TAG} ]]; then
+	echo "Version tag is not set. Not going to prepare a release"
+	return
+    fi
+
+    if [ -d $RELEASE_DIR ] ; then
+	rm -rf $RELEASE_DIR
+    fi
+    mkdir -p $RELEASE_DIR
+
+    mv ${ASMACK_BASE}/build/*.{jar,zip} ${RELEASE_DIR}/
+    cp $TAG_FILE ${RELEASE_DIR}/
+    cp ${ASMACK_BASE}/CHANGELOG ${RELEASE_DIR}
+
+    if [ -n $GPG_KEY ] ; then
+	find $RELEASE_DIR -maxdepth 1 -and \( -name '*.jar' -or -name '*.zip' \) -print0 \
+	    | xargs -n 1 -0 $XARGS_ARGS gpg --local-user $GPG_KEY --detach-sign
+    fi
+
+    find $RELEASE_DIR -maxdepth 1 -and \( -name '*.jar' -or -name '*.zip' \) -print0 \
+	| xargs -I{} -n 1 -0 $XARGS_ARGS sh -c 'md5sum {} > {}.md5'
+
+    local release_readme
+    release_readme=${RELEASE_DIR}/README
+
+    sed \
+	-e "s/\$VERSION_TAG/${VERSION_TAG}/" \
+	-e "s/\$BUILD_DATE/${BUILD_DATE}/" \
+	README.asmack > $release_readme
+
+    # Pretty print the component versions at the end of README
+    # Note that there is an exclamation mark at the beginning of the
+    # associative array to access the keys
+    for i in "${!COMPONENT_VERSIONS[@]}" ; do
+	local tabs
+	if [[ ${#i} -le 6 ]] ; then
+	    tabs="\t\t"
+	else
+	    tabs="\t"
+	fi
+	echo -e "${i}:${tabs}${COMPONENT_VERSIONS[$i]}" >> $release_readme
+    done
+}
+
+publishRelease() {
+    if [[ -z ${VERSION_TAG} ]]; then
+	echo "Version tag is not set. Not going to prepare a release"
+	return
+    fi
+
+    if [[ -z ${PUBLISH_RELEASE} ]]; then
+	echo "User doesn't want to publish this release"
+	return
+    fi
+
+    if [[ -z $PUBLISH_HOST || -z $PUBLISH_DIR ]]; then
+	echo "WARNING: Not going to publish this release as either $PUBLISH_HOST or $PUBLISH_DIR is not set"
+	return
+    fi
+
+    cd ${ASMACK_RELEASES}
+    cat <<EOF | sftp $PUBLISH_HOST
+rm ${PUBLISH_DIR}/${VERSION_TAG}/*
+mkdir ${PUBLISH_DIR}/${VERSION_TAG}
+put -r $VERSION_TAG $PUBLISH_DIR
+EOF
 }
 
 islocalrepo() {
@@ -249,6 +408,7 @@ initialize() {
 	mkdir src
     fi
     find build \( -name '*.jar' -or -name '*.zip' \) -print0 | xargs -0 rm -f
+    rm -rf src/custom
 }
 
 cleanup() {
@@ -276,7 +436,7 @@ prettyPrintSeconds() {
     echo "Execution took $ttime"
 }
 
-execute() { 
+execute() {
     if [ -n "$BACKGROUND" ]; then
 	"$@" &
     else
@@ -285,18 +445,30 @@ execute() {
 }
 
 setdefaults() {
-# Default configuration
+    # Default configuration, can be changed with script arguments
     SMACK_REPO=git://github.com/Flowdalic/smack.git
-    SMACK_BRANCH=origin/master
+    SMACK_BRANCH=master
     SMACK_LOCAL=false
     UPDATE_REMOTE=true
     BUILD_CUSTOM=false
     BUILD_JINGLE=false
     JINGLE_ARGS=""
     PARALLEL_BUILD=false
+    VERSION_TAG=""
+    PUBLISH_RELEASE=""
+    PUBLISH_HOST=""
+    PUBLISH_DIR=""
+    BUILD_ANDROID_VERSIONS=""
+
+    # Often used variables
     ASMACK_BASE=$(pwd)
-    SRC_DIR=$ASMACK_BASE/src
+    ASMACK_RELEASES=${ASMACK_BASE}/releases
+    SRC_DIR=${ASMACK_BASE}/src
+    VERSION_TAG_DIR=${ASMACK_BASE}/version-tags
     STARTTIME=$(date -u "+%s")
+    BUILD_DATE=$(date)
+    # Declare an associative array that is in global scope ('-g')
+    declare -g -A COMPONENT_VERSIONS
 }
 
 parseconfig() {
@@ -314,9 +486,26 @@ setconfig() {
 	BACKGROUND=""
     fi
 
-    if islocalrepo $SMACK_REPO ; then
+    if islocalrepo $SMACK_REPO; then
 	SMACK_LOCAL=true
 	SMACK_REPO=`readlink -f $SMACK_REPO`
+    fi
+
+    if [[ -n ${VERSION_TAG} ]]; then
+	if ! grep ${VERSION_TAG} CHANGELOG; then
+	    echo "Could not find the tag in the CHANGELOG file. Please write a short summary of changes"
+	    exit 1
+	fi
+	if ! git diff --exit-code; then
+	    echo "Unstaged changes found, please stages your changes"
+	    exit 1
+	fi
+	if ! git diff --cached --exit-code; then
+	    echo "Staged, but uncommited changes found, please commit"
+	    exit 1
+	fi
+	RELEASE_DIR=${ASMACK_RELEASES}/${VERSION_TAG}
+	TAG_FILE=${VERSION_TAG_DIR}/${VERSION_TAG}.tag
     fi
 }
 
@@ -326,16 +515,31 @@ printconfig() {
     echo -e "PARALLEL_BUILD:$PARALLEL_BUILD\tBASE:$ASMACK_BASE"
 }
 
+checkPrerequisites() {
+    if [[ $BASH_VERSION < 4 ]] ; then
+	echo "aSmack's build.bash needs at least bash version 4"
+	exit 1
+    fi
+
+    if ! tar --version |grep GNU &> /dev/null ; then
+	echo "aSmack's build.bash needs GNU tar"
+	exit 1
+    fi
+}
+
+# Main
+
 setdefaults
 parseopts $@
+checkPrerequisites
 parseconfig
 setconfig
 printconfig
-
 initialize
 copystaticsrc
 testsmackgit
 fetchall
+createVersionTag
 createbuildsrc
 patchsrc "patch"
 if $BUILD_JINGLE ; then
@@ -344,18 +548,21 @@ if $BUILD_JINGLE ; then
 fi
 build
 
-if $BUILD_CUSTOM; then
+if $BUILD_CUSTOM ; then
     buildcustom
 fi
 
 if cmdExists advzip ; then
   echo "advzip found, compressing files"
-  find build \( -name '*.jar' -or -name '*.zip' \) -print0 | xargs -n 1 -0 $XARGS_ARGS advzip -z4 
+  find build \( -name '*.jar' -or -name '*.zip' \) -print0 | xargs -n 1 -0 $XARGS_ARGS advzip -z4
 else
   echo "Could not find the advzip command."
   echo "advzip will further reduce the size of the generated jar and zip files,"
   echo "consider installing advzip"
 fi
+
+prepareRelease
+publishRelease
 
 STOPTIME=$(date -u "+%s")
 RUNTIME=$(( $STOPTIME - $STARTTIME ))
