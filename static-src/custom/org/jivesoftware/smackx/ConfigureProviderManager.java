@@ -22,9 +22,7 @@ import org.jivesoftware.smackx.bytestreams.ibb.provider.CloseIQProvider;
 import org.jivesoftware.smackx.bytestreams.ibb.provider.DataPacketProvider;
 import org.jivesoftware.smackx.bytestreams.ibb.provider.OpenIQProvider;
 import org.jivesoftware.smackx.bytestreams.socks5.provider.BytestreamsProvider;
-import org.jivesoftware.smackx.carbons.Carbon;
 import org.jivesoftware.smackx.entitycaps.provider.CapsExtensionProvider;
-import org.jivesoftware.smackx.forward.Forwarded;
 import org.jivesoftware.smackx.packet.AttentionExtension;
 import org.jivesoftware.smackx.packet.ChatStateExtension;
 import org.jivesoftware.smackx.packet.LastActivity;
@@ -32,7 +30,6 @@ import org.jivesoftware.smackx.packet.Nick;
 import org.jivesoftware.smackx.packet.OfflineMessageInfo;
 import org.jivesoftware.smackx.packet.OfflineMessageRequest;
 import org.jivesoftware.smackx.packet.SharedGroupsInfo;
-import org.jivesoftware.smackx.ping.provider.PingProvider;
 import org.jivesoftware.smackx.provider.DataFormProvider;
 import org.jivesoftware.smackx.provider.DelayInformationProvider;
 import org.jivesoftware.smackx.provider.DiscoverInfoProvider;
@@ -186,16 +183,6 @@ public class ConfigureProviderManager {
 
         // Attention
         pm.addExtensionProvider("attention", "urn:xmpp:attention:0", new AttentionExtension.Provider());
-
-	// XEP-0297 Stanza Forwarding
-	pm.addExtensionProvider("forwarded", "urn:xmpp:forward:0", new Forwarded.Provider());
-
-	// XEP-0280 Message Carbons
-	pm.addExtensionProvider("sent", "urn:xmpp:carbons:2", new Carbon.Provider());
-	pm.addExtensionProvider("received", "urn:xmpp:carbons:2", new Carbon.Provider());
-
-	// XEP-0199 XMPP Ping
-	pm.addIQProvider("ping", "urn:xmpp:ping", new PingProvider());
 
 	// XEP-184 Message Delivery Receipts
 	pm.addExtensionProvider("received", "urn:xmpp:receipts", new DeliveryReceipt.Provider());
