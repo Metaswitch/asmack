@@ -22,7 +22,6 @@ import org.jivesoftware.smackx.bytestreams.ibb.provider.CloseIQProvider;
 import org.jivesoftware.smackx.bytestreams.ibb.provider.DataPacketProvider;
 import org.jivesoftware.smackx.bytestreams.ibb.provider.OpenIQProvider;
 import org.jivesoftware.smackx.bytestreams.socks5.provider.BytestreamsProvider;
-import org.jivesoftware.smackx.entitycaps.provider.CapsExtensionProvider;
 import org.jivesoftware.smackx.packet.AttentionExtension;
 import org.jivesoftware.smackx.packet.ChatStateExtension;
 import org.jivesoftware.smackx.packet.LastActivity;
@@ -182,8 +181,5 @@ public class ConfigureProviderManager {
 
         // Attention
         pm.addExtensionProvider("attention", "urn:xmpp:attention:0", new AttentionExtension.Provider());
-
-	// XEP-0115 Entity Capabilities
-	pm.addExtensionProvider("c", "http://jabber.org/protocol/caps", new CapsExtensionProvider());
     }
 }
