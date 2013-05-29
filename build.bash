@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 svnfetch() {
     REV="${3:-HEAD}"
@@ -98,7 +98,7 @@ createVersionTag() {
 
     local v
     cat <<EOF  > $TAG_FILE
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This file contains the version information of the components that
 # were used to build this aSmack version
@@ -145,10 +145,10 @@ copyfolder() {
   cd ${ASMACK_BASE}
   (
     cd "${1}"
-    tar -cSsp --exclude-vcs "${3}"
+    tar -cp --exclude=.svn --exclude=.git --exclude=.hg "${3}"
   ) | (
     cd "${2}"
-    tar -xSsp
+    tar -xp
   )
   wait
 }
@@ -522,11 +522,6 @@ printconfig() {
 checkPrerequisites() {
     if [[ $BASH_VERSION < 4 ]] ; then
 	echo "aSmack's build.bash needs at least bash version 4"
-	exit 1
-    fi
-
-    if ! tar --version |grep GNU &> /dev/null ; then
-	echo "aSmack's build.bash needs GNU tar"
 	exit 1
     fi
 }
