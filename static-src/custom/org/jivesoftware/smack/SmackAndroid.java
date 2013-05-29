@@ -1,7 +1,5 @@
 package org.jivesoftware.smack;
 
-import org.jivesoftware.smack.util.DNSUtil;
-import org.jivesoftware.smack.util.dns.DNSJavaResolver;
 import org.jivesoftware.smackx.ConfigureProviderManager;
 import org.jivesoftware.smackx.InitStaticCode;
 import org.xbill.DNS.ResolverConfig;
@@ -19,7 +17,6 @@ public class SmackAndroid {
 
     private SmackAndroid(Context ctx) {
         mCtx = ctx;
-        DNSUtil.setDNSResolver(DNSJavaResolver.getInstance())
         InitStaticCode.initStaticCode(ctx);
         ConfigureProviderManager.configureProviderManager();
         maybeRegisterReceiver();
@@ -29,16 +26,16 @@ public class SmackAndroid {
         if (sSmackAndroid == null) {
             sSmackAndroid = new SmackAndroid(ctx);
         } else {
-            sSmackAndroid.maybeRegisterReceiver();
+	    sSmackAndroid.maybeRegisterReceiver();
         }
         return sSmackAndroid;
     }
 
     public void onDestroy() {
-        if (mConnectivityChangedReceiver != null) {
-            mCtx.unregisterReceiver(mConnectivityChangedReceiver);
-            mConnectivityChangedReceiver = null;
-        }
+	if (mConnectivityChangedReceiver != null) {
+	    mCtx.unregisterReceiver(mConnectivityChangedReceiver);
+	    mConnectivityChangedReceiver = null;
+	}
     }
 
     private void maybeRegisterReceiver() {

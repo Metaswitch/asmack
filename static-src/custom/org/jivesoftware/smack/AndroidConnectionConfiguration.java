@@ -6,7 +6,6 @@ import android.os.Build;
 
 import org.jivesoftware.smack.proxy.ProxyInfo;
 import org.jivesoftware.smack.util.DNSUtil;
-import org.jivesoftware.smack.util.dns.HostAddress;
 
 /**
  * This class wraps DNS SRV lookups for a new ConnectionConfiguration in a 
@@ -74,7 +73,7 @@ public class AndroidConnectionConfiguration extends ConnectionConfiguration {
 	AndroidInit();
         class DnsSrvLookupRunnable implements Runnable {
             String serviceName;
-            volatile HostAddress address;
+            volatile DNSUtil.HostAddress address;
 
             public DnsSrvLookupRunnable(String serviceName) {
                 this.serviceName = serviceName;
@@ -86,7 +85,7 @@ public class AndroidConnectionConfiguration extends ConnectionConfiguration {
                 address = DNSUtil.resolveXMPPDomain(serviceName);
             }
 
-            public HostAddress getHostAddress() {
+            public DNSUtil.HostAddress getHostAddress() {
                 return address;
             }
         }
@@ -100,12 +99,12 @@ public class AndroidConnectionConfiguration extends ConnectionConfiguration {
             throw new XMPPException("DNS lookup timeout after " + timeout + "ms", e);
         }
 
-        HostAddress address = dnsSrv.getHostAddress();
+        DNSUtil.HostAddress address = dnsSrv.getHostAddress();
         if (address == null) {
         	throw new XMPPException("DNS lookup failure");
         }
         
-        String host = address.getFQDN();
+        String host = address.getHost();
         int port = address.getPort();
         ProxyInfo proxy = ProxyInfo.forDefaultProxy();
         
