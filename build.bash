@@ -492,7 +492,7 @@ setconfig() {
 
     if islocalrepo $SMACK_REPO; then
 	SMACK_LOCAL=true
-	SMACK_REPO=`readlink -f $SMACK_REPO`
+	#SMACK_REPO=`readlink -f $SMACK_REPO`
     fi
 
     if [[ -n ${VERSION_TAG} ]]; then
