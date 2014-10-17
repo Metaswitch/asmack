@@ -213,6 +213,7 @@ buildandroid() {
 	echo "Android SDK not found. Don't build android version"
 	exit 1
     fi
+    export ANDROID_HOME=$sdklocation
     for f in ${sdklocation/\$\{user.home\}/$HOME}/platforms/* ; do
 	version=`basename $f`
 	if [[ "$version" != android-* ]] ; then
