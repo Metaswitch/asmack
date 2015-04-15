@@ -208,7 +208,7 @@ buildandroid() {
 	exit 1
     fi
 
-    sdklocation=$(grep -E "sdk(\.dir|-location)" local.properties| cut -d= -f2)
+    sdklocation=$(grep -E "sdk(\.dir|-location)" local.properties | head -1 | cut -d= -f2)
     if [ -z "$sdklocation" ] ; then
 	echo "Android SDK not found. Don't build android version"
 	exit 1
