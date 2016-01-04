@@ -83,7 +83,7 @@ fetchall() {
 	return
     fi
 
-    execute gitfetch "git@github.com:Metaswitch/qpid-java.git" "qpid"
+    execute gitfetch "git@github.com:Metaswitch/qpid-java.git" "master" "qpid"
     execute svnfetch "http://svn.apache.org/repos/asf/harmony/enhanced/java/trunk/classlib/modules/auth/src/main/java/common/" "harmony" 
     execute svnfetch "https://dnsjava.svn.sourceforge.net/svnroot/dnsjava/trunk" "dnsjava"
     execute gitfetch "git://kenai.com/jbosh~origin" "master" "jbosh"
