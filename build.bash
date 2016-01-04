@@ -83,7 +83,7 @@ fetchall() {
 	return
     fi
 
-    execute svnfetch "http://svn.apache.org/repos/asf/qpid/java/trunk/management/common/src/main/" "qpid"
+    execute gitfetch "git@github.com:Metaswitch/qpid-java.git" "qpid"
     execute svnfetch "http://svn.apache.org/repos/asf/harmony/enhanced/java/trunk/classlib/modules/auth/src/main/java/common/" "harmony" 
     execute svnfetch "https://dnsjava.svn.sourceforge.net/svnroot/dnsjava/trunk" "dnsjava"
     execute gitfetch "git://kenai.com/jbosh~origin" "master" "jbosh"
@@ -160,7 +160,7 @@ createbuildsrc() {
   mkdir -p build/src/trunk
 
   execute copyfolder "src/smack/source/" "build/src/trunk" "."
-  execute copyfolder "src/qpid/java" "build/src/trunk" "org/apache/qpid/management/common/sasl"
+  execute copyfolder "src/qpid/management/common/src/main/java" "build/src/trunk" "org/apache/qpid/management/common/sasl"
   execute copyfolder "src/novell-openldap-jldap" "build/src/trunk" "."
   execute copyfolder "src/dnsjava"  "build/src/trunk" "org"
   execute copyfolder "src/harmony" "build/src/trunk" "."
