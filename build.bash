@@ -84,7 +84,7 @@ fetchall() {
     fi
 
     execute gitfetch "git@github.com:Metaswitch/qpid-java.git" "master" "qpid"
-    execute svnfetch "http://svn.apache.org/repos/asf/harmony/enhanced/java/trunk/classlib/modules/auth/src/main/java/common/" "harmony" 
+    execute svnfetch "http://svn.apache.org/repos/asf/harmony/enhanced/java/trunk/classlib/modules/auth/src/main/java/common/" "harmony"
     execute svnfetch "https://dnsjava.svn.sourceforge.net/svnroot/dnsjava/trunk" "dnsjava"
     execute gitfetch "git://kenai.com/jbosh~origin" "master" "jbosh"
     # jldap doesn't compile with the latest version (missing deps?), therefore it's a fixed version for now
@@ -198,7 +198,7 @@ buildandroid() {
     local sdklocation
     local version
     local sdks
-    local minSdkVer=8
+    local minSdkVer=14
 
     cd $ASMACK_BASE
 
